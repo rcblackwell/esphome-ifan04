@@ -2,25 +2,11 @@ substitutions:
   devicename: ifan04
   friendly_devicename: iFan04
   fan_startup_boost_time: 5s
-  # Morse codes for the different buzzer sounds
-  code_buzzer_on:  "E"    # .
-  code_buzzer_off: "I"    # ..
-  code_fan_off:    "T"    # -
-  code_fan_1:      "N"    # -.
-  code_fan_2:      "D"    # -..
-  code_fan_3:      "B"    # -...
-  code_fan_4:      "6"    # -....
-  code_rc_unpair:  "O"    # ---
-  code_short:      "E"    # .
-  code_long:       "T"    # -
 
 external_components:
   - source:
       type: git
       url: https://github.com/rh1rich/esphome-ifan-remote
-  - source:
-      type: git
-      url: https://github.com/rh1rich/esphome-morse-code
 
 esphome:
   project:
@@ -31,7 +17,7 @@ esphome:
   on_boot:
     priority: 800
     then:
-      - output.turn_off: buzzer
+      # - output.turn_off: buzzer
 
 esp8266:
   board: esp8285
@@ -56,13 +42,13 @@ api:
   # Setting reboot timeout to 0 seconds to disable the automatic reboot, if no api connection (Home Assistant server).
   # This is essential for offline usage.
   reboot_timeout: 0s
-  actions:
-    - action: play_morse_code
-      variables:
-        text_string: string
-      then:
-        - morse_code.start:
-            text: !lambda 'return text_string;'
+  # actions:
+  #   - action: play_morse_code
+  #     variables:
+  #       text_string: string
+  #     then:
+  #       - morse_code.start:
+  #           text: !lambda 'return text_string;'
 
 ota:
   - platform: esphome
@@ -90,7 +76,7 @@ web_server:
 # GPIO04 ... I2C SDA (TP11 D_RX on PCB backside)
 # GPIO05 ... I2C SCL (TP10 D_TX on PCB backside)
 # GPIO09 ... Light Relay (D)
-# GPIO10 ... Buzzer
+# GPIO10 ... Buzzer (removed)
 # GPIO12 ... Fan Relay 2 (D11, 3uF cap on IFAN04-H)
 # GPIO13 ... LED
 # GPIO14 ... Fan Relay 1 (D5, 2.5uF cap on IFAN04-H)
@@ -120,11 +106,11 @@ output:
     pin:
       number: GPIO09
       inverted: true
-  - platform: gpio
-    id: buzzer
-    pin:
-      number: GPIO10
-      inverted: true
+  # - platform: gpio
+  #   id: buzzer
+  #   pin:
+  #     number: GPIO10
+  #     inverted: true
   - platform: gpio
     id: fan_relay_1
     pin: GPIO14
@@ -142,11 +128,6 @@ output:
           condition:
             lambda: return (state < 0.25);
           then:
-            - if:
-                condition:
-                  lambda: return id(buzzer_enabled).state;
-                then:
-                  - morse_code.start: $code_fan_off
             - script.execute:
                 id: fan_speed_set
                 speed: 0
@@ -154,11 +135,6 @@ output:
           condition:
             lambda: return ((state >= 0.25) && (state < 0.5));
           then:
-            - if:
-                condition:
-                  lambda: return id(buzzer_enabled).state;
-                then:
-                  - morse_code.start: $code_fan_1
             - script.execute:
                 id: fan_speed_set
                 speed: 1
@@ -166,11 +142,6 @@ output:
           condition:
             lambda: return ((state >= 0.5) && (state < 0.75));
           then:
-            - if:
-                condition:
-                  lambda: return id(buzzer_enabled).state;
-                then:
-                  - morse_code.start: $code_fan_2
             - script.execute:
                 id: fan_speed_set
                 speed: 2
@@ -178,11 +149,6 @@ output:
           condition:
             lambda: return ((state >= 0.75) && (state < 1));
           then:
-            - if:
-                condition:
-                  lambda: return id(buzzer_enabled).state;
-                then:
-                  - morse_code.start: $code_fan_3
             - script.execute:
                 id: fan_speed_set
                 speed: 3
@@ -190,18 +156,13 @@ output:
           condition:
             lambda: return (state >= 1);
           then:
-            - if:
-                condition:
-                  lambda: return id(buzzer_enabled).state;
-                then:
-                  - morse_code.start: $code_fan_4
             - script.execute:
                 id: fan_speed_set
                 speed: 4
 
-morse_code:
-  output: buzzer
-  dit_duration: 50
+# morse_code:
+#   output: buzzer
+#   dit_duration: 50
 
 light:
   - platform: binary
@@ -217,16 +178,16 @@ fan:
     speed_count: 4
 
 switch:
-  - platform: template
-    name: 'Buzzer enabled'
-    id: buzzer_enabled
-    entity_category: config
-    optimistic: True
-    restore_mode: RESTORE_DEFAULT_ON
-    on_turn_on:
-      - morse_code.start: $code_buzzer_on
-    on_turn_off:
-      - morse_code.start: $code_buzzer_off
+  # - platform: template
+  #   name: 'Buzzer enabled'
+  #   id: buzzer_enabled
+  #   entity_category: config
+  #   optimistic: True
+  #   restore_mode: RESTORE_DEFAULT_ON
+  #   on_turn_on:
+  #     - morse_code.start: $code_buzzer_on
+  #   on_turn_off:
+  #     - morse_code.start: $code_buzzer_off
   - platform: template
     name: 'Light enabled'
     id: light_enabled
@@ -368,31 +329,21 @@ ifan_remote:
                 then:
                   - light.toggle: light_comp
                 else:
-                  - if:
-                      condition:
-                        lambda: return id(buzzer_enabled).state;
-                      then:
-                        - morse_code.start: $code_short
                   - binary_sensor.template.publish:
                       id: rc_button_light
                       state: ON
                   - binary_sensor.template.publish:
                       id: rc_button_light
                       state: OFF
-      - if:
-          condition:
-            lambda: return (command.high == 0x0106 && command.low == 0x000101);
-          then:
-            - switch.toggle: buzzer_enabled
+      # - if:
+      #     condition:
+      #       lambda: return (command.high == 0x0106 && command.low == 0x000101);
+      #     then:
+      #       - switch.toggle: buzzer_enabled
       - if:
           condition:
             lambda: return (command.high == 0x0101 && command.low == 0x000102);
           then:
-            - if:
-                condition:
-                  lambda: return id(buzzer_enabled).state;
-                then:
-                  - morse_code.start: $code_short
             - binary_sensor.template.publish:
                 id: rc_button_rfwifi
                 state: ON
@@ -403,11 +354,6 @@ ifan_remote:
           condition:
             lambda: return (command.high == 0x0101 && command.low == 0x000101);
           then:
-            - if:
-                condition:
-                  lambda: return id(buzzer_enabled).state;
-                then:
-                  - morse_code.start: $code_long
             - binary_sensor.template.publish:
                 id: rc_button_wifi_long
                 state: ON
@@ -418,7 +364,6 @@ ifan_remote:
           condition:
             lambda: return (command.high == 0x0107 && command.low == 0x000101);
           then:
-            - morse_code.start: $code_rc_unpair
             - binary_sensor.template.publish:
                 id: rc_button_rf_long
                 state: ON
@@ -502,72 +447,72 @@ script:
                   - output.turn_on: fan_relay_3
       - lambda: |-
           id(last_fan_speed) = speed;
-  - id: buzzer_play
-    mode: restart
-    parameters:
-      action: string
-    then:
-      - if:
-          condition:
-            lambda: return (action == "buzzer_off");
-          then:
-            - morse_code.start:
-                text: "E"    # .
-      - if:
-          condition:
-            lambda: return (action == "buzzer_on");
-          then:
-            - morse_code.start:
-                text: "I"    # ..
-      - if:
-          condition:
-            lambda: return (action == "rc_unpair");
-          then:
-            - morse_code.start:
-                text: "O"    # ---
-      - if:
-          condition:
-            lambda: return id(buzzer_enabled).state;
-          then:
-            - if:
-                condition:
-                  lambda: return (action == "fan_off");
-                then:
-                  - morse_code.start:
-                      text: "T"    # -
-            - if:
-                condition:
-                  lambda: return (action == "fan_1");
-                then:
-                  - morse_code.start:
-                      text: "N"    # -.
-            - if:
-                condition:
-                  lambda: return (action == "fan_2");
-                then:
-                  - morse_code.start:
-                      text: "D"    # -..
-            - if:
-                condition:
-                  lambda: return (action == "fan_3");
-                then:
-                  - morse_code.start:
-                      text: "B"    # -...
-            - if:
-                condition:
-                  lambda: return (action == "fan_4");
-                then:
-                  - morse_code.start:
-                      text: "6"    # -....
-            - if:
-                condition:
-                  lambda: return (action == "short");
-                then:
-                  - morse_code.start:
-                      text: "E"    # .
-            - if:
-                condition:
-                  lambda: return (action == "long");
-                then:
-                  - morse_code.start:
-                      text: "T"    # -
+  # - id: buzzer_play
+  #   mode: restart
+  #   parameters:
+  #     action: string
+  #   then:
+  #     - if:
+  #         condition:
+  #           lambda: return (action == "buzzer_off");
+  #         then:
+  #           - morse_code.start:
+  #               text: "E"    # .
+  #     - if:
+  #         condition:
+  #           lambda: return (action == "buzzer_on");
+  #         then:
+  #           - morse_code.start:
+  #               text: "I"    # ..
+  #     - if:
+  #         condition:
+  #           lambda: return (action == "rc_unpair");
+  #         then:
+  #           - morse_code.start:
+  #               text: "O"    # ---
+  #     - if:
+  #         condition:
+  #           lambda: return id(buzzer_enabled).state;
+  #         then:
+  #           - if:
+  #               condition:
+  #                 lambda: return (action == "fan_off");
+  #               then:
+  #                 - morse_code.start:
+  #                     text: "T"    # -
+  #           - if:
+  #               condition:
+  #                 lambda: return (action == "fan_1");
+  #               then:
+  #                 - morse_code.start:
+  #                     text: "N"    # -.
+  #           - if:
+  #               condition:
+  #                 lambda: return (action == "fan_2");
+  #               then:
+  #                 - morse_code.start:
+  #                     text: "D"    # -..
+  #           - if:
+  #               condition:
+  #                 lambda: return (action == "fan_3");
+  #               then:
+  #                 - morse_code.start:
+  #                     text: "B"    # -...
+  #           - if:
+  #               condition:
+  #                 lambda: return (action == "fan_4");
+  #               then:
+  #                 - morse_code.start:
+  #                     text: "6"    # -....
+  #           - if:
+  #               condition:
+  #                 lambda: return (action == "short");
+  #               then:
+  #                 - morse_code.start:
+  #                     text: "E"    # .
+  #           - if:
+  #               condition:
+  #                 lambda: return (action == "long");
+  #               then:
+  #                 - morse_code.start:
+  #                     text: "T"    # -

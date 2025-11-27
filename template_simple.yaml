@@ -1,24 +1,11 @@
 substitutions:
   devicename: ifan04
   friendly_devicename: iFan04
-  # Morse codes for the different buzzer sounds
-  code_buzzer_on:  "E"    # .
-  code_buzzer_off: "I"    # ..
-  code_fan_off:    "T"    # -
-  code_fan_1:      "N"    # -.
-  code_fan_2:      "D"    # -..
-  code_fan_3:      "B"    # -...
-  code_rc_unpair:  "O"    # ---
-  code_short:      "E"    # .
-  code_long:       "T"    # -
 
 external_components:
   - source:
       type: git
       url: https://github.com/rh1rich/esphome-ifan-remote
-  - source:
-      type: git
-      url: https://github.com/rh1rich/esphome-morse-code
 
 esphome:
   name: $devicename
@@ -26,7 +13,7 @@ esphome:
   on_boot:
     priority: 600
     then:
-      - output.turn_off: buzzer
+      # - output.turn_off: buzzer
 
 esp8266:
   board: esp8285
@@ -78,7 +65,7 @@ web_server:
 # GPIO04 ... I2C SDA (TP11 D_RX on PCB backside)
 # GPIO05 ... I2C SCL (TP10 D_TX on PCB backside)
 # GPIO09 ... Light Relay (D)
-# GPIO10 ... Buzzer
+# GPIO10 ... Buzzer (removed)
 # GPIO12 ... Fan Relay 2 (D11, 3uF cap on IFAN04-H)
 # GPIO13 ... LED
 # GPIO14 ... Fan Relay 1 (D5, 2.5uF cap on IFAN04-H)
@@ -102,11 +89,11 @@ output:
     pin:
       number: GPIO09
       inverted: true
-  - platform: gpio
-    id: buzzer
-    pin:
-      number: GPIO10
-      inverted: true
+  # - platform: gpio
+  #   id: buzzer
+  #   pin:
+  #     number: GPIO10
+  #     inverted: true
   - platform: gpio
     id: fan_relay_1
     pin: GPIO14
@@ -124,11 +111,6 @@ output:
           condition:
             lambda: return (state < 0.3);
           then:
-            - if:
-                condition:
-                  lambda: return id(buzzer_enabled).state;
-                then:
-                  - morse_code.start: $code_fan_off
             - script.execute:
                 id: fan_speed_set
                 speed: 0
@@ -136,11 +118,6 @@ output:
           condition:
             lambda: return ((state >= 0.3) && (state < 0.6));
           then:
-            - if:
-                condition:
-                  lambda: return id(buzzer_enabled).state;
-                then:
-                  - morse_code.start: $code_fan_1
             - script.execute:
                 id: fan_speed_set
                 speed: 1
@@ -148,11 +125,6 @@ output:
           condition:
             lambda: return ((state >= 0.6) && (state < 0.9));
           then:
-            - if:
-                condition:
-                  lambda: return id(buzzer_enabled).state;
-                then:
-                  - morse_code.start: $code_fan_2
             - script.execute:
                 id: fan_speed_set
                 speed: 2
@@ -160,18 +132,13 @@ output:
           condition:
             lambda: return (state >= 0.9);
           then:
-            - if:
-                condition:
-                  lambda: return id(buzzer_enabled).state;
-                then:
-                  - morse_code.start: $code_fan_3
             - script.execute:
                 id: fan_speed_set
                 speed: 3
 
-morse_code:
-  output: buzzer
-  dit_duration: 50
+# morse_code:
+#   output: buzzer
+#   dit_duration: 50
 
 light:
   - platform: binary
@@ -187,16 +154,16 @@ fan:
     speed_count: 3
 
 switch:
-  - platform: template
-    name: 'Buzzer enabled'
-    id: buzzer_enabled
-    entity_category: config
-    optimistic: True
-    restore_mode: RESTORE_DEFAULT_ON
-    on_turn_on:
-      - morse_code.start: $code_buzzer_on
-    on_turn_off:
-      - morse_code.start: $code_buzzer_off
+  # - platform: template
+  #   name: 'Buzzer enabled'
+  #   id: buzzer_enabled
+  #   entity_category: config
+  #   optimistic: True
+  #   restore_mode: RESTORE_DEFAULT_ON
+  #   on_turn_on:
+  #     - morse_code.start: $code_buzzer_on
+  #   on_turn_off:
+  #     - morse_code.start: $code_buzzer_off
     
 # Remote commands via UART0
 #  RX: GPIO03
@@ -250,16 +217,17 @@ ifan_remote:
             lambda: return (command.high == 0x0104 && command.low == 0x000104);
           then:
             - light.toggle: light_comp
-      - if:
-          condition:
-            lambda: return (command.high == 0x0106 && command.low == 0x000101);
-          then:
-            - switch.toggle: buzzer_enabled
+      # - if:
+      #     condition:
+      #       lambda: return (command.high == 0x0106 && command.low == 0x000101);
+      #     then:
+      #       - switch.toggle: buzzer_enabled
       - if:
           condition:
             lambda: return (command.high == 0x0107 && command.low == 0x000101);
           then:
-            - morse_code.start: $code_rc_unpair
+            - logger.log: "RF Clearing"
+            # - morse_code.start: $code_rc_unpair
 
 script:
   - id: fan_speed_set
