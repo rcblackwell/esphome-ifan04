@@ -2,24 +2,11 @@ substitutions:
   devicename: ifan04
   friendly_devicename: iFan04
   fan_startup_boost_time: 5s
-  # Morse codes for the different buzzer sounds
-  code_buzzer_on:  "E"    # .
-  code_buzzer_off: "I"    # ..
-  code_fan_off:    "T"    # -
-  code_fan_1:      "N"    # -.
-  code_fan_2:      "D"    # -..
-  code_fan_3:      "B"    # -...
-  code_rc_unpair:  "O"    # ---
-  code_short:      "E"    # .
-  code_long:       "T"    # -
 
 external_components:
   - source:
       type: git
       url: https://github.com/rh1rich/esphome-ifan-remote
-  - source:
-      type: git
-      url: https://github.com/rh1rich/esphome-morse-code
 
 esphome:
   project:
@@ -55,14 +42,6 @@ api:
   # Setting reboot timeout to 0 seconds to disable the automatic reboot, if no api connection (Home Assistant server).
   # This is essential for offline usage.
   reboot_timeout: 0s
-  actions:
-    - action: play_morse_code
-      variables:
-        text_string: string
-      then:
-        - morse_code.start:
-            text: !lambda 'return text_string;'
-
 ota:
   - platform: esphome
     password: !secret "ota_password"
@@ -141,11 +120,6 @@ output:
           condition:
             lambda: return (state < 0.3);
           then:
-            - if:
-                condition:
-                  lambda: return id(buzzer_enabled).state;
-                then:
-                  - morse_code.start: $code_fan_off
             - script.execute:
                 id: fan_speed_set
                 speed: 0
@@ -153,11 +127,6 @@ output:
           condition:
             lambda: return ((state >= 0.3) && (state < 0.6));
           then:
-            - if:
-                condition:
-                  lambda: return id(buzzer_enabled).state;
-                then:
-                  - morse_code.start: $code_fan_1
             - script.execute:
                 id: fan_speed_set
                 speed: 1
@@ -165,11 +134,6 @@ output:
           condition:
             lambda: return ((state >= 0.6) && (state < 0.9));
           then:
-            - if:
-                condition:
-                  lambda: return id(buzzer_enabled).state;
-                then:
-                  - morse_code.start: $code_fan_2
             - script.execute:
                 id: fan_speed_set
                 speed: 2
@@ -177,18 +141,9 @@ output:
           condition:
             lambda: return (state >= 0.9);
           then:
-            - if:
-                condition:
-                  lambda: return id(buzzer_enabled).state;
-                then:
-                  - morse_code.start: $code_fan_3
             - script.execute:
                 id: fan_speed_set
                 speed: 3
-
-morse_code:
-  output: buzzer
-  dit_duration: 50
 
 light:
   - platform: binary
@@ -210,10 +165,6 @@ switch:
     entity_category: config
     optimistic: True
     restore_mode: RESTORE_DEFAULT_ON
-    on_turn_on:
-      - morse_code.start: $code_buzzer_on
-    on_turn_off:
-      - morse_code.start: $code_buzzer_off
   - platform: template
     name: 'Light enabled'
     id: light_enabled
@@ -347,11 +298,6 @@ ifan_remote:
                 then:
                   - light.toggle: light_comp
                 else:
-                  - if:
-                      condition:
-                        lambda: return id(buzzer_enabled).state;
-                      then:
-                        - morse_code.start: $code_short
                   - binary_sensor.template.publish:
                       id: rc_button_light
                       state: ON
@@ -367,11 +313,6 @@ ifan_remote:
           condition:
             lambda: return (command.high == 0x0101 && command.low == 0x000102);
           then:
-            - if:
-                condition:
-                  lambda: return id(buzzer_enabled).state;
-                then:
-                  - morse_code.start: $code_short
             - binary_sensor.template.publish:
                 id: rc_button_rfwifi
                 state: ON
@@ -382,11 +323,6 @@ ifan_remote:
           condition:
             lambda: return (command.high == 0x0101 && command.low == 0x000101);
           then:
-            - if:
-                condition:
-                  lambda: return id(buzzer_enabled).state;
-                then:
-                  - morse_code.start: $code_long
             - binary_sensor.template.publish:
                 id: rc_button_wifi_long
                 state: ON
@@ -397,7 +333,6 @@ ifan_remote:
           condition:
             lambda: return (command.high == 0x0107 && command.low == 0x000101);
           then:
-            - morse_code.start: $code_rc_unpair
             - binary_sensor.template.publish:
                 id: rc_button_rf_long
                 state: ON
